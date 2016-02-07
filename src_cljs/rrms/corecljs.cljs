@@ -281,82 +281,58 @@
 
 (defn form-validator [data-set]
   (first (b/validate data-set
-                     :mutationnumber [[v/required :message "Filed is required"]
-                                      [v/string :message "Enter valid Document Name"]]
-                     :nameofthefirstparty [[v/required :message "Filed is required"]
-                                           [v/string :message "Enter valid Title"]]
-                     :nameofthesecondparty [[v/required :message "Filed is required"]
-                                            [v/string  :message "Enter valid Employee name"]]
-                     :dateofinstitution [[v/required :message "Filed is required"]
-                                         [v/datetime  :message "Enter valid Date"]]
-                     :nameofpo [[v/required :message "Filed is required"]
-                                [v/string  :message "Enter valid Location"]]
-                     :dateofdecision [[v/required :message "Filed is required"]
-                                      [v/datetime  :message "Enter valid Date"]]
-                     :title [[v/required :message "Filed is required"]
-                             [v/string  :message "Enter valid Location"]]
-                     :khasranumber [[v/required :message "Filed is required"]
-                                    [v/string  :message "Enter valid Location"]]
-                     :subdivisionname [[v/required :message "Filed is required"]
-                                       [v/string  :message "Enter valid Location"]]
-                     :villageid [[v/required :message "Filed is required"]
-                                 [v/string  :message "Enter valid Location"]]
-                     :o2number [[v/required :message "Filed is required"]
-                                [v/string  :message "Enter valid Location"]]
-                     :o4number [[v/required :message "Filed is required"]
-                                [v/string  :message "Enter valid Location"]]
-                     :o6number [[v/required :message "Filed is required"]
-                                [v/string  :message "Enter valid Location"]]
-                     :racknumber [[v/required :message "Filed is required"]
-                                  [v/string  :message "Enter valid Location"]]
-                     :receiveddate [[v/required :message "Filed is required"]
-                                    [v/datetime  :message "Enter valid Date"]]
-                     :remarks [[v/required :message "Filed is required"]
-                               [v/string  :message "Enter valid Location"]]
-                     )))
+                     :mutationnumber [[v/required :message "Field is required"]]
+                     :nameofthefirstparty [[v/required :message "Field is required"]]
+                     :nameofthesecondparty [[v/required :message "Field is required"]]
+                     :dateofinstitution [[v/required :message "Field is required"]]
+                     :nameofpo [[v/required :message "Field is required"]]
+                     :dateofdecision [[v/required :message "Field is required"]]
+                     :title [[v/required :message "Field is required"]]
+                     :khasranumber [[v/required :message "Field is required"]]
+                     :area [[v/required :message "Field is required"]]
+                     :khatakhatuninumber [[v/required :message "Field is required"]]
+                     :subdivisionname  [[v/required :message "Field is required"]]
+                     :o2number [[v/required :message "Field is required"]]
+                     :o4number [[v/required :message "Field is required"]]
+                     :o6number [[v/required :message "Field is required"]]
+                     :racknumber [[v/required :message "Field is required"]]
+                     :receiveddate [[v/required :message "Field is required"]]
+                     :remarks [[v/required :message "Field is required"]])))
 
 (defn form-input-element [id label ttype data-set focus]
   (let [input-focus (r/atom nil)]
     (fn []
       [:div.form-group
-       [:div.col-md-12
-        [:div.row
-         [:div.col-md-2 [:label label]]
-         [:div.col-md-6 [input-element id ttype data-set label input-focus]]
-         [:div.col-md-4 (if (or @input-focus @focus)
-                          (if (= nil (form-validator @data-set))
-                            [:div]
-                            [:div {:style  {:color "red"}}
-                             [:b (str (first ((form-validator @data-set) id)))]])
-                          [:div])]]]] )))
+       [:label.col-sm-3.control-label label]
+       [:div.col-sm-6 [input-element id ttype data-set label input-focus]]
+       [:div.col-sm-3 (if (or @input-focus @focus)
+                        (if (= nil (form-validator @data-set))
+                          [:div]
+                          [:div {:style  {:color "red"}}
+                           [:b (str (first ((form-validator @data-set) id)))]])
+                        [:div])]])))
 
-
-(defn button [value fun]
-  [:button.btn.btn-primary {:on-click fun} value])
 
 (defn add-form-onclick [data-set focus]
-  (reset! data-set (assoc @data-set :villageid
-                          (int (.-value (.getElementById js/document "districts")))))
-  (let [onres (fn[json]
-                (secretary/dispatch! "/"))]
-    (http-post "http://localhost:9000/mutations"
-               onres  (.serialize (Serializer.) (clj->js @data-set))))
-  (reset! focus "on"))
+  (if (= nil (form-validator @data-set))
+    (do (reset! data-set (assoc @data-set :villageid
+                                (int (.-value (.getElementById js/document "districts")))))
+        (let [onres (fn[json]
+                      (secretary/dispatch! "/"))]
+          (http-post "http://localhost:9000/mutations"
+                     onres  (.serialize (Serializer.) (clj->js @data-set)))))
+    (reset! focus "on")))
+
 
 (defn update-form-onclick [data-set focus]
-  (reset! data-set (assoc @data-set :villageid
-                          (int (.-value (.getElementById js/document "districts")))))
-  (let [onres (fn[data]
-                (secretary/dispatch! "/"))]
-    (http-put (str "http://localhost:9000/mutations/" (:id @data-set))
-              onres (.serialize (Serializer.) (clj->js @data-set)))))
-
-;; (if (= nil (form-validator @data-set))
-;;   (let [onres (fn[data]
-;;                 (secretary/dispatch! "/mutations"))]
-;;     (http-put (str "http://localhost:9000/mutations/" (:id @data-set))
-;;               onres (.serialize (Serializer.) (clj->js @data-set))))
-;;   (reset! focus "on"))
+  (if (= nil (form-validator @data-set))
+    (do (reset! data-set (assoc @data-set :villageid
+                                (int (.-value (.getElementById js/document "districts")))))
+        (let [onres (fn[data]
+                      (secretary/dispatch! "/"))]
+          (http-put (str "http://localhost:9000/mutations/" (:id @data-set))
+                    onres (.serialize (Serializer.) (clj->js @data-set)))))
+    (reset! focus "on")))
 
 (defn form-cancel [event]
   (secretary/dispatch! "/"))
@@ -383,50 +359,85 @@
     (http-get "http://localhost:9000/villages" onres)))
 
 (defn tags-template [data-set]
-  (cond (nil? (:villageid @data-set)) [:select {:id "districts"}
+  (cond (nil? (:villageid @data-set)) [:select.form-control {:id "districts"}
                                        (for [d (get-value! :villages)]
                                          ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)])]
-        :else [:select {:id "districts" :defaultValue (:villageid @data-set)}
+        :else [:select.form-control {:id "districts" :defaultValue (:villageid @data-set)}
                (doall (for [d (get-value! :villages)]
                         ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)]))]))
 
-(defn mutation-template [doc-name data-set focus save-function]
-  [:div.container
-   [:div.panel.panel-primary.model-dialog
-    [:div.panel-heading
-     [:h2 doc-name]]
-    [:div.panel-boby
-     [:div.container
-      [:div.form-group
 
+(defn form-input-select [label data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div#tagdiv.col-sm-6 [tags-template data-set]]
+       [:div.col-sm-3 [:div]]])))
+
+(defn datalist []
+  [:datalist {:id "combo"}
+   (let [name-po ["Kumar" "Sai" "Bhaskar" "Rajesh"]]
+     (for [i name-po]
+       ^{:key i}
+       [:option {:value i}]))])
+
+(defn input-combo [id data-set placeholder in-focus]
+  [:input.form-control {:id id
+                        :list "combo"
+                        :value (@data-set id)
+                        :placeholder placeholder
+                        :on-change #(swap! data-set assoc id (-> % .-target .-value))
+                        :on-blur  #(reset! in-focus "on")
+                        } [datalist ]])
+
+(defn form-input-combo [id label data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div.col-sm-6 [input-combo id data-set label input-focus]]
+       [:div.col-sm-3 (if (or @input-focus @focus)
+                        (if (= nil (form-validator @data-set))
+                          [:div]
+                          [:div {:style  {:color "red"}}
+                           [:b (str (first ((form-validator @data-set) id)))]])
+                        [:div])]])))
+
+(defn mutation-template [doc-name data-set focus save-function]
+ [:div.container
+  [:div.col-md-12
+   [:div.box.box-info
+    [:div.box-header.with-border 
+     [:h2.box-title doc-name]]
+    [:div.form-horizontal
+     [:div.box-body
        [form-input-element :mutationnumber "Mutation Number" "text" data-set focus]
        [form-input-element :nameofthefirstparty "Name of the First Party" "text" data-set focus ]
-       [form-input-element :nameofthesecondparty "Name of the SecondParty" "text" data-set focus]
-       [form-input-element :dateofinstitution "Dateof Institution" "date" data-set focus]
-       [form-input-element :nameofpo "Name of PO" "text" data-set focus]
-       [form-input-element :dateofdecision "Dateof Decision" "date" data-set focus]
+       [form-input-element :nameofthesecondparty "Name of the Second Party" "text" data-set focus]
+       [form-input-element :dateofinstitution "Date of Institution" "date" data-set focus]
+       [form-input-combo   :nameofpo "Name of PO" data-set focus]
+       [form-input-element :dateofdecision "Date of Decision" "date" data-set focus]
        [form-input-element :title "Title" "text" data-set focus]
        [form-input-element :khasranumber "Khasra Number" "text" data-set focus]
        [form-input-element :area "Area" "text" data-set focus]
        [form-input-element :khatakhatuninumber "Khata Khatuni Number" "text" data-set focus]
-       [:div  [:div.col-md-2[:label "Village Name"]]
-        [:div#tagdiv [tags-template data-set]]]
-       [form-input-element :subdivisionname "Subdivision Name" "text" data-set focus]
-       [form-input-element :o2number "O2Number" "text" data-set focus]
-       [form-input-element :o4number "O4Number" "text" data-set focus]
-       [form-input-element :o6number "O6Number" "text" data-set focus]
+       [form-input-select "Village Name" data-set focus]
+       [form-input-element :subdivisionname "Sub division Name" "text" data-set focus]
+       [form-input-element :o2number "O2 Number" "text" data-set focus]
+       [form-input-element :o4number "O4 Number" "text" data-set focus]
+       [form-input-element :o6number "O6 Number" "text" data-set focus]
        [form-input-element :racknumber "Rack Number" "text" data-set focus]
        [form-input-element :receiveddate "Received Date" "date" data-set focus]
-       [form-input-element :remarks "Remarks" "text" data-set focus]
-                                        ; [form-input-element :isactive "isactive" "text" data-set focus]
-       [button "Save" save-function]
-       [button "cancel" form-cancel]]]]]])
+       [form-input-element :remarks "Remarks" "text" data-set focus]]
+     [:div.box-footer
+      [:button.btn.btn-default {:on-click form-cancel} "Cancel"]
+      [:button.btn.btn-info.pull-right {:on-click save-function} "Save"]]]]]])
 
 (defn mutation-add-template []
   (let [add-data (r/atom {:isactive true})
         focus (r/atom nil)]
-    (fn [] [mutation-template "Mutation" add-data focus #(add-form-onclick add-data focus)])))
-
+    (fn [] [mutation-template "Mutation Add Form" add-data focus #(add-form-onclick add-data focus)])))
 
 (defn mutation-update-template [id dmt]
   (let [update-data (r/atom {:id (int id)
@@ -447,12 +458,14 @@
                              :o6number (.-o6number dmt)
                              :racknumber (.-racknumber dmt)
                              :receiveddate (.-receiveddate dmt)
-                             ;; :receiveddate (f/unparse (f/formatter "yyyy-mm-dd")(f/parse (.-receiveddate dmt)))
                              :remarks (.-remarks dmt)
                              :villagename (.-villagename dmt)
                              :districtname (.-districtname dmt)})
         focus (r/atom nil)]
-    (fn [] [mutation-template "Update Mutations" update-data focus  #(update-form-onclick update-data focus)])))
+    (fn [] [mutation-template
+            "Mutation Update Form"
+            update-data focus
+            #(update-form-onclick update-data focus)])))
 
 ;; ===============================================================================================
 ;; end of add-update-form coding
