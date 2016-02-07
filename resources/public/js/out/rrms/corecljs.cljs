@@ -321,6 +321,8 @@
   (reset! focus "on"))
 
 (defn update-form-onclick [data-set focus]
+  (reset! data-set (assoc @data-set :villageid
+                          (int (.-value (.getElementById js/document "districts")))))
   (let [onres (fn[data]
                 (secretary/dispatch! "/"))]
     (http-put (str "http://localhost:9000/mutations/" (:id @data-set))
@@ -358,13 +360,12 @@
     (http-get "http://localhost:9000/villages" onres)))
 
 (defn tags-template [data-set]
-  (if (nil? @data-set)[:select {:id "districts"}
-                       (for [d (get-value! :villages)] ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)])]
-      [:select {:id "districts"}
-       (for [d (get-value! :villages)] ^{:key (.-id d)}
-         (if (= (.-id @data-set) (.-id d))[:option {:value (.-id d) :selected true} (.-villagename d)]
-             [:option {:value (.-id d)} (.-villagename d)]))]))
-
+  (cond (nil? (:villageid @data-set)) [:select {:id "districts"}
+                                       (for [d (get-value! :villages)]
+                                         ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)])]
+        :else [:select {:id "districts" :defaultValue (:villageid @data-set)}
+               (doall (for [d (get-value! :villages)]
+                        ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)]))]))
 
 (defn mutation-template [doc-name data-set focus save-function]
   [:div.container
@@ -375,25 +376,25 @@
      [:div.container
       [:div.form-group
 
-       [form-input-element :mutationnumber "mutationnumber" "text" data-set focus]
-       [form-input-element :nameofthefirstparty "nameofthefirstparty" "text" data-set focus ]
-       [form-input-element :nameofthesecondparty "nameofthesecondparty" "text" data-set focus]
-       [form-input-element :dateofinstitution "dateofinstitution" "date" data-set focus]
-       [form-input-element :nameofpo "nameofpo" "text" data-set focus]
-       [form-input-element :dateofdecision "dateofdecision" "date" data-set focus]
-       [form-input-element :title "title" "text" data-set focus]
-       [form-input-element :khasranumber "khasranumber" "text" data-set focus]
-       [form-input-element :area "area" "text" data-set focus]
-       [form-input-element :khatakhatuninumber "khatakhatuninumber" "text" data-set focus]
-       [form-input-element :subdivisionname "subdivisionname" "text" data-set focus]
-       [:div  [:div.col-md-2[:label "villagename"]]
+       [form-input-element :mutationnumber "Mutation Number" "text" data-set focus]
+       [form-input-element :nameofthefirstparty "Name of the First Party" "text" data-set focus ]
+       [form-input-element :nameofthesecondparty "Name of the SecondParty" "text" data-set focus]
+       [form-input-element :dateofinstitution "Dateof Institution" "date" data-set focus]
+       [form-input-element :nameofpo "Name of PO" "text" data-set focus]
+       [form-input-element :dateofdecision "Dateof Decision" "date" data-set focus]
+       [form-input-element :title "Title" "text" data-set focus]
+       [form-input-element :khasranumber "Khasra Number" "text" data-set focus]
+       [form-input-element :area "Area" "text" data-set focus]
+       [form-input-element :khatakhatuninumber "Khata Khatuni Number" "text" data-set focus]
+       [:div  [:div.col-md-2[:label "Village Name"]]
         [:div#tagdiv [tags-template data-set]]]
-       [form-input-element :o2number "o2number" "text" data-set focus]
-       [form-input-element :o4number "o4number" "text" data-set focus]
-       [form-input-element :o6number "o6number" "text" data-set focus]
-       [form-input-element :racknumber "racknumber" "text" data-set focus]
-       [form-input-element :receiveddate "receiveddate" "date" data-set focus]
-       [form-input-element :remarks "remarks" "text" data-set focus]
+       [form-input-element :subdivisionname "Subdivision Name" "text" data-set focus]
+       [form-input-element :o2number "O2Number" "text" data-set focus]
+       [form-input-element :o4number "O4Number" "text" data-set focus]
+       [form-input-element :o6number "O6Number" "text" data-set focus]
+       [form-input-element :racknumber "Rack Number" "text" data-set focus]
+       [form-input-element :receiveddate "Received Date" "date" data-set focus]
+       [form-input-element :remarks "Remarks" "text" data-set focus]
                                         ; [form-input-element :isactive "isactive" "text" data-set focus]
        [button "Save" save-function]
        [button "cancel" form-cancel]]]]]])
@@ -449,12 +450,12 @@
 (defn get-all-click [event]
   (let [onres (fn [json]
                 (let [mt (getdata json)]
-                  (set-key-value :mutations mt)
-                  (set-key-value :pagesCount (get-total-rec-no mt))
+                  (set-key-value :mutations (.-data mt))
+                  (set-key-value :pagesCount (get-total-rec-no
+                                              (.-pagesCount mt)))
                   (set-key-value :current-page 1)
                   (set-key-value :page-location
-                                 [render-mutations (get-new-page-data (get-value! :mutations)
-                                                                      (get-value! :current-page))])))]
+                                 [render-mutations (get-value! :mutations)])))]
     (http-get "http://localhost:9000/mutations?pageIndex=0&pageSize=10" onres)))
 
 (defn render-mutations [mutations]
@@ -465,12 +466,15 @@
    [:div#update]
    [:div {:class "box"}
     [:div {:class "box-header"}
-     [:h3 "List of Documents"]]
+     [:h3 "List of Mutations"]]
     [:div.row
      [:div.col-md-12
       [:div.form-group
-       [:div.col-sm-2 [:input.form-control {:id "dt1" :type "date"}]]
-       [:div.col-sm-2 [:input.form-control {:id "dt2" :type "date"}]]
+       ;; [:div.col-sm-2 [:input.form-control {:id "dt1" :type "date"}]]
+       ;; [:div.col-sm-2 [:input.form-control {:id "dt2" :type "date"}]]
+       [:div.col-sm-2 [:input.form-control {:id "mutationnumber" :type "text"
+                                            :placeholder "Enter search by mutationnumber"}]]
+
        [:div.col-sm-2 [:input.form-control {:id "dt" :type "text"
                                             :placeholder "Enter search text.."}]]
        [:input {:type "button" :value "Search"
@@ -485,10 +489,13 @@
        [:table {:class "table table-bordered table-striped dataTable"}
         [:thead
          [:tr
-          [:th "MutationNumber"]
+          [:th "Mutation Number"]
           [:th "Name of the FirstParty"]
           [:th "Name of The SecondParty"]
+          [:th "Date of Institution"]
           [:th "Name of P.O"]
+          [:th "Name of Districts"]
+          [:th "Name of Village"]
           [:th "SubDivisionName"]
           [:th " "]
           [:th " "]
@@ -499,9 +506,11 @@
                               [:td (.-mutationnumber mt)]
                               [:td (.-nameofthefirstparty mt)]
                               [:td (.-nameofthesecondparty mt)]
+                              ;;  [:td  (f/unparse (f/formatter "dd-MMM-yyyy")(f/parse (.-dateofinstitution dn)))]
+                              [:td (.-dateofinstitution mt)]
                               [:td (.-nameofpo mt)]
-
-                              ;; [:td (.-date dn)]
+                              [:td (.-districtname mt)]
+                              [:td (.-villagename mt)]
                               [:td (.-subdivisionname mt)]
                               ;; [:td [:input {:type "button" :on-click #(click-update(.-id dn))
                               ;;               :class "glyphicon glyphicon-edit" :value "Update"}
