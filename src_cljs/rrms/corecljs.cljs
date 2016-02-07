@@ -26,6 +26,7 @@
                           :total-pages 1
                           :page-location nil
                           :villages {}
+                          :is-searched-results false
                           :user nil}))
 
 
@@ -166,6 +167,18 @@
                                                     (c/from-string (.-date %)))) data)))
 
 
+(defn get-search-url [mn dt]
+  (let [mnv (st/blank? mn)
+        dtv (st/blank? dt)
+        purl (str "http://localhost:9000/mutations/search?")]
+    (cond (and (not mnv) dtv ) (str purl "mutationNumber=" mn)
+          (and mnv (not dtv))  (str purl  "value=" dt)
+          :else (str purl "mutationNumber="mn"&value="dt))))
+
+(defn get-index-url [is-searched-results sel-page mn dt]
+  (cond (= true is-searched-results)(str (get-search-url mn dt)"&pageIndex="sel-page"&pageSize=10")
+        :else (str "http://localhost:9000/mutations?pageIndex="sel-page "&pageSize=10")))
+
 (defn get-new-page-data [data current-page total-pages]
   (js/console.log total-pages)
   (let [pag-start (* 10 (dec current-page))
@@ -196,17 +209,18 @@
 (def pager-elem (r/adapt-react-class (aget js/ReactBootstrap "Pagination")))
 
 (defn set-pager-data [sel-page-no]
-  (let [onres (fn[json]
+  (let [mt (.-value (.getElementById js/document "mutationnumber"))
+        v (.-value (.getElementById js/document "dt"))
+        onres (fn[json]
                 (let [dt (getdata json)]
                   (set-key-value :mutations (.-data dt))
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
-
                   (set-key-value :page-location
                                  [render-mutations (get-value! :mutations)])))]
-    (http-get (str "http://localhost:9000/mutations?pageIndex="(dec (get-value! :current-page)) "&pageSize=10")
+    (http-get (get-index-url (get-value! :is-searched-results)
+                             (dec (get-value! :current-page))
+                             mt v)
               onres)))
-
-
 
 (defn pager [value total-rec]
   [pager-elem {:bsSize "large"
@@ -236,21 +250,30 @@
 (defn cancel [event]
   (secretary/dispatch! "/"))
 
-(defn search [event]
-  (let [dt1 (.-value (.getElementById js/document "dt1"))
-        dt2 (.-value (.getElementById js/document "dt2"))
-        dt  (.-value (.getElementById js/document "dt"))]
+;;...... Side Tab Events .........
 
-    (do (set-key-value :mutations
-                       (clj->js
-                        (filter-data (get-value! :mutations)
-                                     (c/from-string dt1)
-                                     (c/from-string dt2) dt)))
-        (set-key-value :current-page 1)
-        (set-key-value :page-location
-                       [render-mutations
-                        (get-new-page-data (get-value! :mutations)
-                                           (get-value! :current-page))]))))
+(defn mut-click [event]
+  (secretary/dispatch! "/"))
+
+(defn rev-click [event]
+  (secretary/dispatch! "/revenue"))
+
+;;.............. End of Tab Events ......
+
+(defn search [event]
+  (let [mn  (.-value (.getElementById js/document "mutationnumber"))
+        dt  (.-value (.getElementById js/document "dt"))
+        onres (fn [json] (let [data (getdata json)]
+                          (set-key-value :mutations (.-data data))
+                          (set-key-value :total-pages
+                                         (get-total-rec-no (.-pagesCount data)))
+                          (js/console.log (get-value! :total-pages))
+                          (set-key-value :page-location
+                                         [render-mutations (get-value! :mutations)])))]
+    (set-key-value :current-page 1)
+    (set-key-value :is-searched-results true)
+    (http-get (str (get-search-url mn dt) "&pageIndex=0&pageSize=10")
+              onres)))
 
 ;; ========================================================================================
 ;; Add-update-form creation validation
@@ -451,11 +474,12 @@
   (let [onres (fn [json]
                 (let [mt (getdata json)]
                   (set-key-value :mutations (.-data mt))
-                  (set-key-value :pagesCount (get-total-rec-no
-                                              (.-pagesCount mt)))
+                  (set-key-value :total-pages (get-total-rec-no
+                                               (.-pagesCount mt)))
                   (set-key-value :current-page 1)
                   (set-key-value :page-location
                                  [render-mutations (get-value! :mutations)])))]
+    (set-key-value :is-searched-results false)
     (http-get "http://localhost:9000/mutations?pageIndex=0&pageSize=10" onres)))
 
 (defn render-mutations [mutations]
@@ -542,6 +566,7 @@
                   (set-key-value :mutations (.-data dt))
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-mutations (get-value! :mutations)])))]
+    (set-key-value :is-searched-results false)
     (http-get (str "http://localhost:9000/mutations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 (defroute mutations-list "/mutations" []
@@ -550,6 +575,7 @@
                   (set-key-value :mutations (.-data dt))
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-mutations (get-value! :mutations)])))]
+    (set-key-value :is-searched-results false)
     (http-get (str "http://localhost:9000/mutations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 
@@ -561,12 +587,15 @@
 
 (defroute documents-path1 "/mutations/update/:id" [id]
   (let [onres (fn[json](
-                        (set-key-value :villages (getdata json))
-                        (set-page! [mutation-update-template id
-                                    (first (filter (fn[obj]
-                                                     (=(.-id obj) (.parseInt js/window id))) (get-value! :mutations)))])))]
+                       (set-key-value :villages (getdata json))
+                       (set-page! [mutation-update-template id
+                                   (first (filter (fn[obj]
+                                                    (=(.-id obj) (.parseInt js/window id))) (get-value! :mutations)))])))]
     (http-get "http://localhost:9000/villages" onres)))
 
+
+(defroute revenue-list "/revenue" []
+  )
 
 
 (defroute "*" []
