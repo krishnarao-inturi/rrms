@@ -271,6 +271,21 @@
 (defn field-click [event]
   (secretary/dispatch! "/fieldbook"))
 
+(defn misc-click [event]
+  (secretary/dispatch! "/misc"))
+
+(defn o2-click [event]
+  (secretary/dispatch! "/o2register"))
+
+(defn o4-click [event]
+  (secretary/dispatch! "/o4register"))
+
+(defn o6-click [event]
+  (secretary/dispatch! "/o6register"))
+
+
+
+
 ;;.............. End of Tab Events ......
 
 (defn search [event]
@@ -1468,7 +1483,7 @@
        [:div{:class "col-xs-6 col-centered col-max"} [shared-state 0]]]]]]])
 
 ;; ---------------------------------------------------------
-;; rvenue-records
+;; fieldbook-records
 
 (defn fieldbook-form-validator [data-set]
   (first (b/validate data-set
@@ -1680,8 +1695,789 @@
                                          :class "btn btn-danger btn-sm glyphicon glyphicon-remove"}]]])]]
        [:div{:class "col-xs-6 col-centered col-max"} [shared-state 0]]]]]]])
 
-;; -------------------------------------------------------------------------------
+;; ---------------------------------------------------------
+;; misc-records
 
+(defn misc-form-validator [data-set]
+  (first (b/validate data-set
+                     :filenumber [[v/required :message "Field is required"]]
+                     :subject [[v/required :message "Field is required"]]
+                     :title [[v/required :message "Field is required"]]
+                     :remarks [[v/required :message "Field is required"]]
+                     :dispatcheddate [[v/required :message "Field is required"]]
+                     :receiveddate [[v/required :message "Field is required"]]
+                     )))
+
+
+;; (defn misc-input-int-row [id label ttype data-set focus]
+;;   (let [input-focus (r/atom nil)]
+;;     (fn []
+;;       [:div.form-group
+;;        [:label.col-sm-3.control-label label]
+;;        [:div.col-sm-6 [input-int id ttype data-set label input-focus]]
+;;        [:div.col-sm-3 (if (or @input-focus @focus)
+;;                         (if (= nil (misc-form-validator @data-set))
+;;                           [:div]
+;;                           [:div {:style  {:color "red"}}
+;;                            [:b (str (first ((misc-form-validator @data-set) id)))]])
+;;                         [:div])]])))
+
+(defn misc-input-row [id label ttype data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div.col-sm-6 [input-element id ttype data-set label input-focus]]
+       [:div.col-sm-3 (if (or @input-focus @focus)
+                        (if (= nil (misc-form-validator @data-set))
+                          [:div]
+                          [:div {:style  {:color "red"}}
+                           [:b (str (first ((misc-form-validator @data-set) id)))]])
+                        [:div])]])))
+
+
+(defn misc-template [doc-name data-set focus save-function]
+ [:div.container
+  [:div.col-md-12
+   [:div.box.box-info
+    [:div.box-header.with-border 
+     [:h2.box-title doc-name]]
+    [:div.form-horizontal
+     [:div.box-body
+       [misc-input-row :filenumber "File Numbar" "text" data-set focus]
+       [misc-input-row :subject "Subject" "text" data-set focus]
+       [misc-input-row :title "Title" "text" data-set focus]
+       [misc-input-row :remarks "Remarks" "text" data-set focus]
+       [misc-input-row :dispatcheddate "Dispatched Date" "date" data-set focus]
+       [misc-input-row :receiveddate "Recevied Date" "date" data-set focus]
+    [:div.box-footer
+      [:button.btn.btn-default {:on-click misc-form-cancel} "Cancel"]
+      [:button.btn.btn-info.pull-right {:on-click save-function} "Save"]]]]]]])
+
+(defn misc-add-template []
+  (let [add-data (r/atom {:isactive true})
+        focus (r/atom nil)]
+    (fn [] [misc-template 
+              "misc Add Form" 
+               add-data
+               focus
+               #(misc-add-form-onclick add-data focus)])))
+
+(defn misc-update-template [id dmt]
+  (let [update-data (r/atom {:id (int id)
+                             :filenumber (.-filenumber dmt)
+                             :subject (.-subject dmt)
+                             :title (.-title dmt)
+                             :remarks (.-remarks dmt)
+                             :dispatcheddate (.-dispatcheddate dmt)
+                             :receiveddate (.-receiveddate dmt)
+                             })
+        focus (r/atom nil)]
+    (fn [] [misc-template
+            "misc Update Form"
+            update-data 
+            focus
+            #(misc-update-form-onclick update-data focus)])))
+
+
+(defn misc-add-form-onclick [data-set focus]
+  (if (= nil (misc-form-validator @data-set))
+    (let [onres (fn[json] (secretary/dispatch! "/misc"))]
+          (http-post (str serverhost "miscs") onres  (.serialize (Serializer.) (clj->js @data-set))))
+  (reset! focus "on")))
+
+
+(defn misc-update-form-onclick [data-set focus]
+  (if (= nil (misc-form-validator @data-set))
+      (let [onres (fn[data] (secretary/dispatch! "/misc"))]
+          (http-put (str serverhost "miscs/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set))))
+    (reset! focus "on")))
+
+(defn misc-form-cancel [event]
+  (secretary/dispatch! "/misc"))
+
+(defn misc-add [event]
+  (secretary/dispatch! "/misc/add"))
+
+(defn misc-update[id]
+  (secretary/dispatch! (str "/misc/update/" id)))
+
+(defn misc-delete[id]
+  (let [onres (fn [json]
+                (secretary/dispatch! "/misc"))]
+    (http-delete (str serverhost "miscs/" id)  onres)))
+
+
+(defroute misc-list "/misc" []
+  (let [onres (fn [json]
+                (let [dt (getdata json)]
+                  (set-key-value :miscs (.-data dt))
+                  (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
+                  (set-key-value :page-location  [render-misc (get-value! :miscs)])))]
+    (set-key-value :is-searched-results false)
+    (http-get (str serverhost "miscs?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+
+
+(defroute misc-add-path "/misc/add" []
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [misc-add-template])))]
+    (http-get (str serverhost "villages") onres)))
+
+(defroute misc-upd-path "/misc/update/:id" [id]
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [misc-update-template id
+                                    (first (filter (fn[obj]
+                                                     (=(.-id obj) (.parseInt js/window id))) (get-value! :miscs)))])))]
+    (http-get (str serverhost "villages") onres)))
+
+
+
+(defn render-misc [miscs]
+  [:div
+   [:div {:class "box"}
+    [:div {:class "box-header"}
+     [:h3 "List of misc Records"]]
+    [:div.row
+     [:div.col-md-12
+      [:div.form-group
+       [:input {:type "button" :value "Add"
+                :class "btn btn-primary" :on-click misc-add}] 
+       ;; [:input {:id "getall" :type "button" :value "Refresh"
+       ;;          :class "btn btn-primary" :on-click get-all-click}]
+       ]
+      [:div {:class "box-body"}
+
+       [:table {:class "table table-bordered table-striped dataTable"}
+        [:thead
+         [:tr
+          [:th "Fille Number"]
+          [:th "Subject"]
+          [:th "Title"]
+          [:th "Remarks"]
+          [:th "Dispatched Date"]
+          [:th "Received Date"]          
+          [:th " "]
+          [:th " "]
+          ]]
+        [:tbody
+         (for [mt miscs]
+           ^{:key (.-id mt)} [:tr
+                              [:td (.-filenumber mt)]
+                              [:td (.-subject mt)]
+                              [:td (.-title mt)]
+                              [:td (.-remarks mt)]
+                              [:td (.-dispatcheddate mt)]
+                              [:td (.-receiveddate mt)]
+                              [:td [:a {:href "javascript:;"
+                                        :on-click  #(misc-update(.-id mt))
+                                        :class "btn btn-success btn-sm glyphicon glyphicon-edit"}]]
+                              [:td  [:a {:href "javascript:;" :on-click #(misc-delete(.-id mt))
+                                         :class "btn btn-danger btn-sm glyphicon glyphicon-remove"}]]])]]
+       [:div{:class "col-xs-6 col-centered col-max"} [shared-state 0]]]]]]])
+
+;; ---------------------------------------------------------
+;; o2register-records
+
+(defn o2register-form-validator [data-set]
+  (first (b/validate data-set
+                     :serialnumber [[v/required :message "Field is required Must be number"]]
+                     :tehsil [[v/required :message "Field is required"]]
+                     :dateofinstitution [[v/required :message "Field is required"]]
+                     :sourceofreceipt [[v/required :message "Field is required"]]
+                     :nameofthefirstparty [[v/required :message "Field is required"]]
+                     :dateofreceiptfrompanchayat [[v/required :message "Field is required"]] 
+                     :dateandgistoffinalorder [[v/required :message "Field is required"]]
+                     :racknumber [[v/required :message "Field is required"]]
+                     :startingyear [[v/required :message "Field is required Must be number"]]
+                     :endingyear [[v/required :message "Field is required Must be number"]])))
+
+
+(defn o2register-input-int-row [id label ttype data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div.col-sm-6 [input-int id ttype data-set label input-focus]]
+       [:div.col-sm-3 (if (or @input-focus @focus)
+                        (if (= nil (o2register-form-validator @data-set))
+                          [:div]
+                          [:div {:style  {:color "red"}}
+                           [:b (str (first ((o2register-form-validator @data-set) id)))]])
+                        [:div])]])))
+
+(defn o2register-input-row [id label ttype data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div.col-sm-6 [input-element id ttype data-set label input-focus]]
+       [:div.col-sm-3 (if (or @input-focus @focus)
+                        (if (= nil (o2register-form-validator @data-set))
+                          [:div]
+                          [:div {:style  {:color "red"}}
+                           [:b (str (first ((o2register-form-validator @data-set) id)))]])
+                        [:div])]])))
+
+
+(defn o2register-template [doc-name data-set focus save-function]
+ [:div.container
+  [:div.col-md-12
+   [:div.box.box-info
+    [:div.box-header.with-border 
+     [:h2.box-title doc-name]]
+    [:div.form-horizontal
+     [:div.box-body
+       [o2register-input-int-row :serialnumber "Serial Number" "text" data-set focus]
+       [o2register-input-row :tehsil "Tehsil" "text" data-set focus]
+       [o2register-input-row :dateofinstitution "Date Of Institution" "date" data-set focus]
+       [o2register-input-row :sourceofreceipt "Source Of Receipt" "text" data-set focus]
+       [o2register-input-select "Village Name" data-set focus ]
+       [o2register-input-row :nameofthefirstparty "Name Of The First Party" "text" data-set focus]
+       [o2register-input-row :dateofreceiptfrompanchayat "Date Of Receipt From Panchayat" "date" data-set focus]
+       [o2register-input-row :dateandgistoffinalorder "Date and gist of Final Order" "date" data-set focus]
+       [o2register-input-row :racknumber "Rack Number" "text" data-set focus]
+       [o2register-input-int-row :startingyear "Starting Year" "text" data-set focus]
+       [o2register-input-int-row :endingyear "Ending Year" "text" data-set focus]
+    [:div.box-footer
+      [:button.btn.btn-default {:on-click o2register-form-cancel} "Cancel"]
+      [:button.btn.btn-info.pull-right {:on-click save-function} "Save"]]]]]]])
+
+
+(defn o2register-add-form-onclick [data-set focus]
+  (if (= nil (o2register-form-validator @data-set))
+    (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "o2register-districts")))))
+        (let [onres (fn[json] (secretary/dispatch! "/o2register"))]
+          (http-post (str serverhost "o2registers") onres  (.serialize (Serializer.) (clj->js @data-set)))))
+  (reset! focus "on")))
+
+
+(defn o2register-update-form-onclick [data-set focus]
+  (if (= nil (o2register-form-validator @data-set))
+    (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "o2register-districts")))))
+        (let [onres (fn[data] (secretary/dispatch! "/o2register"))]
+          (http-put (str serverhost "o2registers/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
+    (reset! focus "on")))
+
+(defn o2register-form-cancel [event]
+  (secretary/dispatch! "/o2register"))
+
+(defn o2register-on-change [event]
+  (let [ele (.getElementById js/document "id")
+        eval (.-value ele)
+        onresp (fn [json]
+                 (let [dt (getdata json)]
+                   (set-key-value :villages dt)))]
+    (set-key-value :villages [])
+    (when-not ( >  1 (.-length eval))
+      (http-get (str serverhost "villages/search?name=" eval) onresp))))
+
+
+(defn o2register-tags-template [data-set]
+  (cond (nil? (:villageid @data-set)) [:select.form-control {:id "o2register-districts"}
+                                       (for [d (get-value! :villages)]
+                                         ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)])]
+        :else [:select.form-control {:id "o2register-districts" :defaultValue (:villageid @data-set)}
+               (doall (for [d (get-value! :villages)]
+                        ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)]))]))
+
+(defn o2register-input-select [label data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div#tagdiv.col-sm-6 [o2register-tags-template data-set]]
+       [:div.col-sm-3 [:div]]])))
+
+
+(defn o2register-add-template []
+  (let [add-data (r/atom {:isactive true})
+        focus (r/atom nil)]
+    (fn [] [o2register-template 
+          "o2register Add Form" 
+            add-data focus
+             #(o2register-add-form-onclick add-data focus)])))
+
+(defn o2register-update-template [id dmt]
+  (let [update-data (r/atom {:id (int id)
+                             :serialnumber (.-serialnumber dmt)
+                             :dateofinstitution (.-dateofinstitution dmt)
+                             :villageid (.-villageid dmt)
+                             :villagename (.-villagename dmt)
+                             :tehsil (.-tehsil dmt)
+                             :sourceofreceipt (.-sourceofreceipt dmt)
+                             :nameofthefirstparty (.-nameofthefirstparty dmt)
+                             :dateofreceiptfrompanchayat (.-dateofreceiptfrompanchayat dmt)
+                             :dateandgistoffinalorder (.-dateandgistoffinalorder dmt)
+                             :racknumber (.-racknumber dmt)
+                             :startingyear (.-startingyear dmt)
+                             :endingyear (.-endingyear dmt)
+                             })
+        focus (r/atom nil)]
+    (fn [] [o2register-template
+            "o2register Update Form"
+            update-data focus
+            #(o2register-update-form-onclick update-data focus)])))
+
+
+(defn o2register-update[id]
+  (secretary/dispatch! (str "/o2register/update/" id)))
+
+(defn o2register-delete[id]
+  (let [onres (fn [json]
+                (secretary/dispatch! "/o2register"))]
+    (http-delete (str serverhost "o2registers/" id)  onres)))
+
+
+(defroute o2register-list "/o2register" []
+  (let [onres (fn [json]
+                (let [dt (getdata json)]
+                  (set-key-value :o2registers (.-data dt))
+                  (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
+                  (set-key-value :page-location  [render-o2register (get-value! :o2registers)])))]
+    (set-key-value :is-searched-results false)
+    (http-get (str serverhost "o2registers?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+
+
+(defroute o2register-add-path "/o2register/add" []
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [o2register-add-template])))]
+    (http-get (str serverhost "villages") onres)))
+
+(defroute o2register-upd-path "/o2register/update/:id" [id]
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [o2register-update-template id
+                                    (first (filter (fn[obj]
+                                                     (=(.-id obj) (.parseInt js/window id))) (get-value! :o2registers)))])))]
+    (http-get (str serverhost "villages") onres)))
+
+(defn o2register-add [event]
+  (secretary/dispatch! "/o2register/add"))
+
+(defn render-o2register [o2registers]
+  [:div
+   [:div {:class "box"}
+    [:div {:class "box-header"}
+     [:h3 "List of o2register Records"]]
+    [:div.row
+     [:div.col-md-12
+      [:div.form-group
+       [:input {:type "button" :value "Add"
+                :class "btn btn-primary" :on-click o2register-add}] 
+       ;; [:input {:id "getall" :type "button" :value "Refresh"
+       ;;          :class "btn btn-primary" :on-click get-all-click}]
+       ]
+      [:div {:class "box-body"}
+
+       [:table {:class "table table-bordered table-striped dataTable"}
+        [:thead
+         [:tr
+          [:th "S.No"]
+          [:th "Tehsil"]
+          [:th "Date of Institution"]
+          [:th "Source of Receipt"]
+          [:th "Village Name"]
+          [:th "Name of the First Party"]
+          [:th "Date of Receipt"]
+          [:th "Date of Gist Final Order"]
+          [:th "Rack NUmber"]
+          [:th "Starting Year"]
+          [:th "Ending Year"]
+          [:th " "]
+          [:th " "]
+          ]]
+        [:tbody
+         (for [mt o2registers]
+           ^{:key (.-id mt)} [:tr
+                              [:td (.-serialnumber mt)]
+                              [:td (.-tehsil mt)]
+                              [:td (.-dateofinstitution mt)]
+                              [:td (.-sourceofreceipt mt)]
+                              [:td (.-villagename mt)]
+                              [:td (.-nameofthefirstparty mt)]
+                              [:td (.-dateofreceiptfrompanchayat mt)]
+                              [:td (.-dateandgistoffinalorder mt)]
+                              [:td (.-racknumber mt)]
+                              [:td (.-startingyear mt)]
+                              [:td (.-endingyear mt)]
+                              [:td [:a {:href "javascript:;"
+                                        :on-click  #(o2register-update(.-id mt))
+                                        :class "btn btn-success btn-sm glyphicon glyphicon-edit"}]]
+                              [:td  [:a {:href "javascript:;" :on-click #(o2register-delete(.-id mt))
+                                         :class "btn btn-danger btn-sm glyphicon glyphicon-remove"}]]])]]
+       [:div{:class "col-xs-6 col-centered col-max"} [shared-state 0]]]]]]])
+
+;; ---------------------------------------------------------
+;; o4register-records
+
+(defn o4register-form-validator [data-set]
+  (first (b/validate data-set
+                     :tehsil [[v/required :message "Field is required"]]
+                     :khatakhatuninumber [[v/required :message "Field is required"]]
+                     :numberanddateoforder [[v/required :message "Field is required"]]
+                     :khasranumber [[v/required :message "Field is required"]]
+                     :area [[v/required :message "Field is required"]]
+                     :revenuerentofshareofplotstransferred [[v/required :message "Field is required"]]
+                     :nameanddescriptionofthepersonsremoved [[v/required :message "Field is required"]]
+                     )))
+
+(defn o4register-input-row [id label ttype data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div.col-sm-6 [input-element id ttype data-set label input-focus]]
+       [:div.col-sm-3 (if (or @input-focus @focus)
+                        (if (= nil (o4register-form-validator @data-set))
+                          [:div]
+                          [:div {:style  {:color "red"}}
+                           [:b (str (first ((o4register-form-validator @data-set) id)))]])
+                        [:div])]])))
+
+
+(defn o4register-template [doc-name data-set focus save-function]
+ [:div.container
+  [:div.col-md-12
+   [:div.box.box-info
+    [:div.box-header.with-border 
+     [:h2.box-title doc-name]]
+    [:div.form-horizontal
+     [:div.box-body
+       [o4register-input-row :tehsil "Tehsil" "text" data-set focus]
+       [o4register-input-row :khatakhatuninumber "Khata Khatuni Number" "text" data-set focus]
+       [o4register-input-row :numberanddateoforder "Number and Date Of Order" "date" data-set focus]
+       [o4register-input-row :khasranumber "Khasra Number" "text" data-set focus]
+       [o4register-input-row :area "Area" "text" data-set focus]
+       [o4register-input-row :revenuerentofshareofplotstransferred "Revenue Rent Of Share Of Plots Transfered" "text" data-set focus]
+       [o4register-input-row :nameanddescriptionofthepersonsremoved "Name and Description Of the Persons Removed" "text" data-set focus]
+    [:div.box-footer
+      [:button.btn.btn-default {:on-click o4register-form-cancel} "Cancel"]
+      [:button.btn.btn-info.pull-right {:on-click save-function} "Save"]]]]]]])
+
+(defn o4register-add-template []
+  (let [add-data (r/atom {:isactive true})
+        focus (r/atom nil)]
+    (fn [] [o4register-template 
+              "o4register Add Form" 
+               add-data
+               focus
+               #(o4register-add-form-onclick add-data focus)])))
+
+(defn o4register-update-template [id dmt]
+  (let [update-data (r/atom {:id (int id)
+                             :tehsil (.-tehsil dmt)
+                             :khatakhatuninumber (.-khatakhatuninumber dmt)
+                             :numberanddateoforder (.-numberanddateoforder dmt)
+                             :khasranumber (.-khasranumber dmt)
+                             :area (.-area dmt)
+                             :revenuerentofshareofplotstransferred (.-revenuerentofshareofplotstransferred dmt)
+                             :nameanddescriptionofthepersonsremoved (.-nameanddescriptionofthepersonsremoved dmt)
+                             })
+        focus (r/atom nil)]
+    (fn [] [o4register-template
+            "o4register Update Form"
+            update-data 
+            focus
+            #(o4register-update-form-onclick update-data focus)])))
+
+
+(defn o4register-add-form-onclick [data-set focus]
+  (if (= nil (o4register-form-validator @data-set))
+    (let [onres (fn[json] (secretary/dispatch! "/o4register"))]
+          (http-post (str serverhost "o4registers") onres  (.serialize (Serializer.) (clj->js @data-set))))
+  (reset! focus "on")))
+
+
+(defn o4register-update-form-onclick [data-set focus]
+  (if (= nil (o4register-form-validator @data-set))
+      (let [onres (fn[data] (secretary/dispatch! "/o4register"))]
+          (http-put (str serverhost "o4registers/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set))))
+    (reset! focus "on")))
+
+(defn o4register-form-cancel [event]
+  (secretary/dispatch! "/o4register"))
+
+(defn o4register-add [event]
+  (secretary/dispatch! "/o4register/add"))
+
+(defn o4register-update[id]
+  (secretary/dispatch! (str "/o4register/update/" id)))
+
+(defn o4register-delete[id]
+  (let [onres (fn [json]
+                (secretary/dispatch! "/o4register"))]
+    (http-delete (str serverhost "o4registers/" id)  onres)))
+
+
+(defroute o4register-list "/o4register" []
+  (let [onres (fn [json]
+                (let [dt (getdata json)]
+                  (set-key-value :o4registers (.-data dt))
+                  (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
+                  (set-key-value :page-location  [render-o4register (get-value! :o4registers)])))]
+    (set-key-value :is-searched-results false)
+    (http-get (str serverhost "o4registers?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+
+
+(defroute o4register-add-path "/o4register/add" []
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [o4register-add-template])))]
+    (http-get (str serverhost "villages") onres)))
+
+(defroute o4register-upd-path "/o4register/update/:id" [id]
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [o4register-update-template id
+                                    (first (filter (fn[obj]
+                                                     (=(.-id obj) (.parseInt js/window id))) (get-value! :o4registers)))])))]
+    (http-get (str serverhost "villages") onres)))
+
+
+
+(defn render-o4register [o4registers]
+  [:div
+   [:div {:class "box"}
+    [:div {:class "box-header"}
+     [:h3 "List of o4register Records"]]
+    [:div.row
+     [:div.col-md-12
+      [:div.form-group
+       [:input {:type "button" :value "Add"
+                :class "btn btn-primary" :on-click o4register-add}] 
+       ;; [:input {:id "getall" :type "button" :value "Refresh"
+       ;;          :class "btn btn-primary" :on-click get-all-click}]
+       ]
+      [:div {:class "box-body"}
+
+       [:table {:class "table table-bordered table-striped dataTable"}
+        [:thead
+         [:tr
+          [:th "Tehsil"]
+          [:th "Khata Khatuni Number"]
+          [:th "Number and Date of Order"]
+          [:th "Khasra Number"]
+          [:th "Area"]
+          [:th "Revenue of Share of Plots Transfered"] 
+          [:th "Name and Description of the Persons Removed"]         
+          [:th " "]
+          [:th " "]
+          ]]
+        [:tbody
+         (for [mt o4registers]
+           ^{:key (.-id mt)} [:tr
+                              [:td (.-tehsil mt)]
+                              [:td (.-khatakhatuninumber mt)]
+                              [:td (.-numberanddateoforder mt)]
+                              [:td (.-khasranumber mt)]
+                              [:td (.-area mt)]
+                              [:td (.-revenuerentofshareofplotstransferred mt)]
+                              [:td (.-nameanddescriptionofthepersonsremoved mt)]
+                              [:td [:a {:href "javascript:;"
+                                        :on-click  #(o4register-update(.-id mt))
+                                        :class "btn btn-success btn-sm glyphicon glyphicon-edit"}]]
+                              [:td  [:a {:href "javascript:;" :on-click #(o4register-delete(.-id mt))
+                                         :class "btn btn-danger btn-sm glyphicon glyphicon-remove"}]]])]]
+       [:div{:class "col-xs-6 col-centered col-max"} [shared-state 0]]]]]]])
+
+
+;; ---------------------------------------------------------
+;; o6register-records
+
+(defn o6register-form-validator [data-set]
+  (first (b/validate data-set
+                     :tehsil [[v/required :message "Field is required"]]
+                     :year [[v/required :message "Field is required"]]
+                     :mehsilnumber [[v/required :message "Field is required"]]
+                     :dateoforderlevy [[v/required :message "Field is required"]]
+                     :nameofpersonwhomrecoveryismade [[v/required :message "Field is required"]])))
+
+
+(defn o6register-input-row [id label ttype data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div.col-sm-6 [input-element id ttype data-set label input-focus]]
+       [:div.col-sm-3 (if (or @input-focus @focus)
+                        (if (= nil (o6register-form-validator @data-set))
+                          [:div]
+                          [:div {:style  {:color "red"}}
+                           [:b (str (first ((o6register-form-validator @data-set) id)))]])
+                        [:div])]])))
+
+
+(defn o6register-template [doc-name data-set focus save-function]
+ [:div.container
+  [:div.col-md-12
+   [:div.box.box-info
+    [:div.box-header.with-border 
+     [:h2.box-title doc-name]]
+    [:div.form-horizontal
+     [:div.box-body 
+       [o6register-input-row :tehsil "Tehsil" "text" data-set focus]
+       [o6register-input-row :year "Year" "date" data-set focus]
+       [o6register-input-row :mehsilnumber "Mehsil Number" "text" data-set focus]
+       [o6register-input-row :dateoforderlevy "Date of Order Levy" "date" data-set focus]
+       [o6register-input-select "Village Name" data-set focus ]
+       [o6register-input-row :nameofpersonwhomrecoveryismade "Name of Person Whom Recovery is Made" "text" data-set focus]
+    [:div.box-footer
+      [:button.btn.btn-default {:on-click o6register-form-cancel} "Cancel"]
+      [:button.btn.btn-info.pull-right {:on-click save-function} "Save"]]]]]]])
+
+
+(defn o6register-add-form-onclick [data-set focus]
+  (if (= nil (o6register-form-validator @data-set))
+    (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "o6register-districts")))))
+        (let [onres (fn[json] (secretary/dispatch! "/o6register"))]
+          (http-post (str serverhost "o6registers") onres  (.serialize (Serializer.) (clj->js @data-set)))))
+  (reset! focus "on")))
+
+
+(defn o6register-update-form-onclick [data-set focus]
+  (if (= nil (o6register-form-validator @data-set))
+    (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "o6register-districts")))))
+        (let [onres (fn[data] (secretary/dispatch! "/o6register"))]
+          (http-put (str serverhost "o6registers/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
+    (reset! focus "on")))
+
+(defn o6register-form-cancel [event]
+  (secretary/dispatch! "/o6register"))
+
+(defn o6register-on-change [event]
+  (let [ele (.getElementById js/document "id")
+        eval (.-value ele)
+        onresp (fn [json]
+                 (let [dt (getdata json)]
+                   (set-key-value :villages dt)))]
+    (set-key-value :villages [])
+    (when-not ( >  1 (.-length eval))
+      (http-get (str serverhost "villages/search?name=" eval) onresp))))
+
+
+(defn o6register-tags-template [data-set]
+  (cond (nil? (:villageid @data-set)) [:select.form-control {:id "o6register-districts"}
+                                       (for [d (get-value! :villages)]
+                                         ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)])]
+        :else [:select.form-control {:id "o6register-districts" :defaultValue (:villageid @data-set)}
+               (doall (for [d (get-value! :villages)]
+                        ^{:key (.-id d)} [:option {:value (.-id d)} (.-villagename d)]))]))
+
+(defn o6register-input-select [label data-set focus]
+  (let [input-focus (r/atom nil)]
+    (fn []
+      [:div.form-group
+       [:label.col-sm-3.control-label label]
+       [:div#tagdiv.col-sm-6 [o6register-tags-template data-set]]
+       [:div.col-sm-3 [:div]]])))
+
+
+(defn o6register-add-template []
+  (let [add-data (r/atom {:isactive true})
+        focus (r/atom nil)]
+    (fn [] [o6register-template 
+          "o6register Add Form" 
+            add-data focus
+             #(o6register-add-form-onclick add-data focus)])))
+
+(defn o6register-update-template [id dmt]
+  (let [update-data (r/atom {:id (int id)
+                             :tehsil (.-tehsil dmt)
+                             :year (.-year dmt)
+                             :mehsilnumber (.-mehsilnumber dmt)
+                             :dateoforderlevy (.-dateoforderlevy dmt)
+                             :villageid (.-villageid dmt)
+                             :villagename (.-villagename dmt)
+                             :nameofpersonwhomrecoveryismade (.-nameofpersonwhomrecoveryismade dmt)})
+        focus (r/atom nil)]
+    (fn [] [o6register-template
+            "o6register Update Form"
+            update-data focus
+            #(o6register-update-form-onclick update-data focus)])))
+
+
+(defn o6register-update[id]
+  (secretary/dispatch! (str "/o6register/update/" id)))
+
+(defn o6register-delete[id]
+  (let [onres (fn [json]
+                (secretary/dispatch! "/o6register"))]
+    (http-delete (str serverhost "o6registers/" id)  onres)))
+
+
+(defroute o6register-list "/o6register" []
+  (let [onres (fn [json]
+                (let [dt (getdata json)]
+                  (set-key-value :o6registers (.-data dt))
+                  (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
+                  (set-key-value :page-location  [render-o6register (get-value! :o6registers)])))]
+    (set-key-value :is-searched-results false)
+    (http-get (str serverhost "o6registers?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+
+
+(defroute o6register-add-path "/o6register/add" []
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [o6register-add-template])))]
+    (http-get (str serverhost "villages") onres)))
+
+(defroute o6register-upd-path "/o6register/update/:id" [id]
+  (let [onres (fn[json](
+                        (set-key-value :villages (getdata json))
+                        (set-page! [o6register-update-template id
+                                    (first (filter (fn[obj]
+                                                     (=(.-id obj) (.parseInt js/window id))) (get-value! :o6registers)))])))]
+    (http-get (str serverhost "villages") onres)))
+
+(defn o6register-add [event]
+  (secretary/dispatch! "/o6register/add"))
+
+(defn render-o6register [o6registers]
+  [:div
+   [:div {:class "box"}
+    [:div {:class "box-header"}
+     [:h3 "List of o6register Records"]]
+    [:div.row
+     [:div.col-md-12
+      [:div.form-group
+       [:input {:type "button" :value "Add"
+                :class "btn btn-primary" :on-click o6register-add}] 
+       ;; [:input {:id "getall" :type "button" :value "Refresh"
+       ;;          :class "btn btn-primary" :on-click get-all-click}]
+       ]
+      [:div {:class "box-body"}
+
+       [:table {:class "table table-bordered table-striped dataTable"}
+        [:thead
+         [:tr
+          [:th "Tehsil"]
+          [:th "Year"]
+          [:th  "Mehsil Number"]
+          [:th "Date of Orederlevy"]
+          [:th "Village Name"]
+          [:th "name of Person Whom Recovery is Made"]
+          [:th " "]
+          [:th " "]
+          ]]
+        [:tbody
+         (for [mt o6registers]
+           ^{:key (.-id mt)} [:tr
+                              [:td (.-tehsil mt)]
+                              [:td (.-year mt)]
+                              [:td (.-mehsilnumber mt)]
+                              [:td (.-dateoforderlevy mt)]
+                              [:td (.-villagename mt)]
+                              [:td (.-nameofpersonwhomrecoveryismade mt)]
+                              [:td [:a {:href "javascript:;"
+                                        :on-click  #(o6register-update(.-id mt))
+                                        :class "btn btn-success btn-sm glyphicon glyphicon-edit"}]]
+                              [:td  [:a {:href "javascript:;" :on-click #(o6register-delete(.-id mt))
+                                         :class "btn btn-danger btn-sm glyphicon glyphicon-remove"}]]])]]
+       [:div{:class "col-xs-6 col-centered col-max"} [shared-state 0]]]]]]])
+;; ----------------------------------------------------------------------------------
 
 
 (defn table-mount []
