@@ -29,6 +29,7 @@
                           :is-searched-results false
                           :user nil}))
 
+(def serverhost "http://localhost:9000/")
 
 (defn set-key-value [k v]
   (reset! storage (assoc @storage k v)))
@@ -105,7 +106,7 @@
                    (if (= (get-status json) 200)
                      ((set-key-value :user (getdata json))
                       (secretary/dispatch! "/documents"))))]
-      (http-post "http://localhost:8193/user/authenticate"
+      (http-post (str serverhost "user/authenticate")
                  onresp (.serialize (Serializer.) (clj->js @data-set ))))
     (reset! focus "on")))
 
@@ -170,14 +171,14 @@
 (defn get-search-url [mn dt]
   (let [mnv (st/blank? mn)
         dtv (st/blank? dt)
-        purl (str "http://localhost:9000/mutations/search?")]
+        purl (str serverhost "mutations/search?")]
     (cond (and (not mnv) dtv ) (str purl "mutationNumber=" mn)
           (and mnv (not dtv))  (str purl  "value=" dt)
           :else (str purl "mutationNumber="mn"&value="dt))))
 
 (defn get-index-url [is-searched-results sel-page mn dt]
   (cond (= true is-searched-results)(str (get-search-url mn dt)"&pageIndex="sel-page"&pageSize=10")
-        :else (str "http://localhost:9000/mutations?pageIndex="sel-page "&pageSize=10")))
+        :else (str serverhost "mutations?pageIndex="sel-page "&pageSize=10")))
 
 (defn get-new-page-data [data current-page total-pages]
   (js/console.log total-pages)
@@ -287,9 +288,6 @@
     (http-get (str (get-search-url mn dt) "&pageIndex=0&pageSize=10")
               onres)))
 
-;; ========================================================================================
-;; Add-update-form creation validation
-;; ========================================================================================
 
 (defn form-validator [data-set]
   (first (b/validate data-set
@@ -331,7 +329,7 @@
                                 (int (.-value (.getElementById js/document "districts")))))
         (let [onres (fn[json]
                       (secretary/dispatch! "/"))]
-          (http-post "http://localhost:9000/mutations"
+          (http-post (str serverhost "mutations")
                      onres  (.serialize (Serializer.) (clj->js @data-set)))))
     (reset! focus "on")))
 
@@ -342,7 +340,7 @@
                                 (int (.-value (.getElementById js/document "districts")))))
         (let [onres (fn[data]
                       (secretary/dispatch! "/"))]
-          (http-put (str "http://localhost:9000/mutations/" (:id @data-set))
+          (http-put (str serverhost "mutations/" (:id @data-set))
                     onres (.serialize (Serializer.) (clj->js @data-set)))))
     (reset! focus "on")))
 
@@ -360,7 +358,7 @@
 
     (set-key-value :villages [])
     (when-not ( >  1 (.-length eval))
-      (http-get (str "http://localhost:9000/villages/search?name=" eval)
+      (http-get (str serverhost "villages/search?name=" eval)
                 onresp))))
 
 (defn input [label type id]
@@ -368,7 +366,7 @@
 
 (defn get-villages []
   (let [onres (fn[json]((set-key-value :villages (getdata json))))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defn tags-template [data-set]
   (cond (nil? (:villageid @data-set)) [:select.form-control {:id "districts"}
@@ -481,10 +479,6 @@
             focus
             #(update-form-onclick update-data focus)])))
 
-;; ===============================================================================================
-;; end of add-update-form coding
-;; ===============================================================================================
-
 
 (defn click-update[id]
   (secretary/dispatch! (str "/mutations/update/" id)))
@@ -492,7 +486,7 @@
 (defn delete[id]
   (let [onres (fn [json]
                 (secretary/dispatch! "/"))]
-    (http-delete (str "http://localhost:9000/mutations/" id)  onres)))
+    (http-delete (str serverhost "mutations/" id)  onres)))
 
 (defn add [event]
   (secretary/dispatch! "/mutations/add"))
@@ -507,7 +501,7 @@
                   (set-key-value :page-location
                                  [render-mutations (get-value! :mutations)])))]
     (set-key-value :is-searched-results false)
-    (http-get "http://localhost:9000/mutations?pageIndex=0&pageSize=10" onres)))
+    (http-get (str serverhost "mutations?pageIndex=0&pageSize=10") onres)))
 
 (defn render-mutations [mutations]
   [:div
@@ -587,14 +581,14 @@
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-mutations (get-value! :mutations)])))]
     (set-key-value :is-searched-results false)
-    (http-get (str "http://localhost:9000/mutations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+    (http-get (str serverhost "mutations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 
 (defroute documents-path "/mutations/add" []
   (let [onres (fn[json](
                         (set-key-value :villages (getdata json))
                         (set-page! [mutation-add-template])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defroute documents-path1 "/mutations/update/:id" [id]
   (let [onres (fn[json](
@@ -602,7 +596,7 @@
                        (set-page! [mutation-update-template id
                                    (first (filter (fn[obj]
                                                     (=(.-id obj) (.parseInt js/window id))) (get-value! :mutations)))])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 ;; ---------------------------------------------------------
 ;; rvenue-records
@@ -678,7 +672,7 @@
   (if (= nil (revenue-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "revenue-districts")))))
         (let [onres (fn[json] (secretary/dispatch! "/revenue"))]
-          (http-post "http://localhost:9000/revenuerecords" onres  (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-post (str serverhost "revenuerecords") onres  (.serialize (Serializer.) (clj->js @data-set)))))
   (reset! focus "on")))
 
 
@@ -686,7 +680,7 @@
   (if (= nil (revenue-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "revenue-districts")))))
         (let [onres (fn[data] (secretary/dispatch! "/revenue"))]
-          (http-put (str "http://localhost:9000/revenuerecords/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-put (str serverhost "revenuerecords/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
     (reset! focus "on")))
 
 (defn revenue-form-cancel [event]
@@ -700,7 +694,7 @@
                    (set-key-value :villages dt)))]
     (set-key-value :villages [])
     (when-not ( >  1 (.-length eval))
-      (http-get (str "http://localhost:9000/villages/search?name=" eval) onresp))))
+      (http-get (str serverhost "villages/search?name=" eval) onresp))))
 
 
 (defn revenue-tags-template [data-set]
@@ -752,7 +746,7 @@
 (defn revenue-delete[id]
   (let [onres (fn [json]
                 (secretary/dispatch! "/revenue"))]
-    (http-delete (str "http://localhost:9000/revenuerecords/" id)  onres)))
+    (http-delete (str serverhost "revenuerecords/" id)  onres)))
 
 
 (defroute revenue-list "/revenue" []
@@ -762,14 +756,14 @@
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-revenue (get-value! :revenues)])))]
     (set-key-value :is-searched-results false)
-    (http-get (str "http://localhost:9000/revenuerecords?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+    (http-get (str serverhost "revenuerecords?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 
 (defroute revenue-add-path "/revenue/add" []
   (let [onres (fn[json](
                         (set-key-value :villages (getdata json))
                         (set-page! [revenue-add-template])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defroute revenue-upd-path "/revenue/update/:id" [id]
   (let [onres (fn[json](
@@ -777,7 +771,7 @@
                         (set-page! [revenue-update-template id
                                     (first (filter (fn[obj]
                                                      (=(.-id obj) (.parseInt js/window id))) (get-value! :revenues)))])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defn revenue-add [event]
   (secretary/dispatch! "/revenue/add"))
@@ -894,7 +888,7 @@
     (do (reset! data-set (assoc @data-set :villageid
                                 (int (.-value (.getElementById js/document "khasragirdwani-districts")))))
         (let [onres (fn[json] (secretary/dispatch! "/khasragirdwani"))]
-          (http-post "http://localhost:9000/khasragirdwanis" onres  (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-post (str serverhost "khasragirdwanis") onres  (.serialize (Serializer.) (clj->js @data-set)))))
   (reset! focus "on")))
 
 
@@ -903,7 +897,7 @@
     (do (reset! data-set (assoc @data-set :villageid
                                 (int (.-value (.getElementById js/document "khasragirdwani-districts")))))
         (let [onres (fn[data] (secretary/dispatch! "/khasragirdwani"))]
-          (http-put (str "http://localhost:9000/khasragirdwanis/"
+          (http-put (str serverhost "khasragirdwanis/"
                          (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
     (reset! focus "on")))
 
@@ -918,7 +912,7 @@
                    (set-key-value :villages dt)))]
     (set-key-value :villages [])
     (when-not ( >  1 (.-length eval))
-      (http-get (str "http://localhost:9000/villages/search?name=" eval) onresp))))
+      (http-get (str serverhost "villages/search?name=" eval) onresp))))
 
 
 (defn khasragirdwani-tags-template [data-set]
@@ -970,7 +964,7 @@
 (defn khasragirdwani-delete[id]
   (let [onres (fn [json]
                 (secretary/dispatch! "/khasragirdwani"))]
-    (http-delete (str "http://localhost:9000/khasragirdwanis/" id)  onres)))
+    (http-delete (str serverhost "khasragirdwanis/" id)  onres)))
 
 
 (defroute khasragirdwani-list "/khasragirdwani" []
@@ -980,14 +974,14 @@
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-khasragirdwani (get-value! :khasragirdwanis)])))]
     (set-key-value :is-searched-results false)
-    (http-get (str "http://localhost:9000/khasragirdwanis?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+    (http-get (str serverhost "khasragirdwanis?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 
 (defroute khasragirdwani-add-path "/khasragirdwani/add" []
   (let [onres (fn[json](
                         (set-key-value :villages (getdata json))
                         (set-page! [khasragirdwani-add-template])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defroute khasragirdwani-upd-path "/khasragirdwani/update/:id" [id]
   (let [onres (fn[json](
@@ -996,7 +990,7 @@
                                     (first (filter (fn[obj]
                                                      (=(.-id obj) (.parseInt js/window id)))
                                                    (get-value! :khasragirdwanis)))])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defn khasragirdwani-add [event]
   (secretary/dispatch! "/khasragirdwani/add"))
@@ -1111,7 +1105,7 @@
   (if (= nil (masavi-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "masavi-districts")))))
         (let [onres (fn[json] (secretary/dispatch! "/masavi"))]
-          (http-post "http://localhost:9000/masavis" onres  (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-post (str serverhost "masavis") onres  (.serialize (Serializer.) (clj->js @data-set)))))
   (reset! focus "on")))
 
 
@@ -1119,7 +1113,7 @@
   (if (= nil (masavi-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "masavi-districts")))))
         (let [onres (fn[data] (secretary/dispatch! "/masavi"))]
-          (http-put (str "http://localhost:9000/masavis/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-put (str serverhost "masavis/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
     (reset! focus "on")))
 
 (defn masavi-form-cancel [event]
@@ -1133,7 +1127,7 @@
                    (set-key-value :villages dt)))]
     (set-key-value :villages [])
     (when-not ( >  1 (.-length eval))
-      (http-get (str "http://localhost:9000/villages/search?name=" eval) onresp))))
+      (http-get (str serverhost "villages/search?name=" eval) onresp))))
 
 
 (defn masavi-tags-template [data-set]
@@ -1184,7 +1178,7 @@
 (defn masavi-delete[id]
   (let [onres (fn [json]
                 (secretary/dispatch! "/masavi"))]
-    (http-delete (str "http://localhost:9000/masavis/" id)  onres)))
+    (http-delete (str serverhost "masavis/" id)  onres)))
 
 
 (defroute masavi-list "/masavi" []
@@ -1194,14 +1188,14 @@
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-masavi (get-value! :masavis)])))]
     (set-key-value :is-searched-results false)
-    (http-get (str "http://localhost:9000/masavis?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+    (http-get (str serverhost "masavis?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 
 (defroute masavi-add-path "/masavi/add" []
   (let [onres (fn[json](
                         (set-key-value :villages (getdata json))
                         (set-page! [masavi-add-template])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defroute masavi-upd-path "/masavi/update/:id" [id]
   (let [onres (fn[json](
@@ -1209,7 +1203,7 @@
                         (set-page! [masavi-update-template id
                                     (first (filter (fn[obj]
                                                      (=(.-id obj) (.parseInt js/window id))) (get-value! :masavis)))])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defn masavi-add [event]
   (secretary/dispatch! "/masavi/add"))
@@ -1325,7 +1319,7 @@
   (if (= nil (consolidation-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "consolidation-districts")))))
         (let [onres (fn[json] (secretary/dispatch! "/consolidation"))]
-          (http-post "http://localhost:9000/consolidations" onres  (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-post (str serverhost "consolidations") onres  (.serialize (Serializer.) (clj->js @data-set)))))
   (reset! focus "on")))
 
 
@@ -1333,7 +1327,7 @@
   (if (= nil (consolidation-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "consolidation-districts")))))
         (let [onres (fn[data] (secretary/dispatch! "/consolidation"))]
-          (http-put (str "http://localhost:9000/consolidations/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-put (str serverhost "consolidations/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
     (reset! focus "on")))
 
 (defn consolidation-form-cancel [event]
@@ -1347,7 +1341,7 @@
                    (set-key-value :villages dt)))]
     (set-key-value :villages [])
     (when-not ( >  1 (.-length eval))
-      (http-get (str "http://localhost:9000/villages/search?name=" eval) onresp))))
+      (http-get (str serverhost "villages/search?name=" eval) onresp))))
 
 
 (defn consolidation-tags-template [data-set]
@@ -1398,7 +1392,7 @@
 (defn consolidation-delete[id]
   (let [onres (fn [json]
                 (secretary/dispatch! "/consolidation"))]
-    (http-delete (str "http://localhost:9000/consolidations/" id)  onres)))
+    (http-delete (str serverhost "consolidations/" id)  onres)))
 
 
 (defroute consolidation-list "/consolidation" []
@@ -1408,14 +1402,14 @@
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-consolidation (get-value! :consolidations)])))]
     (set-key-value :is-searched-results false)
-    (http-get (str "http://localhost:9000/consolidations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+    (http-get (str serverhost "consolidations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 
 (defroute consolidation-add-path "/consolidation/add" []
   (let [onres (fn[json](
                         (set-key-value :villages (getdata json))
                         (set-page! [consolidation-add-template])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defroute consolidation-upd-path "/consolidation/update/:id" [id]
   (let [onres (fn[json](
@@ -1423,7 +1417,7 @@
                         (set-page! [consolidation-update-template id
                                     (first (filter (fn[obj]
                                                      (=(.-id obj) (.parseInt js/window id))) (get-value! :consolidations)))])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defn consolidation-add [event]
   (secretary/dispatch! "/consolidation/add"))
@@ -1472,7 +1466,6 @@
                               [:td  [:a {:href "javascript:;" :on-click #(consolidation-delete(.-id mt))
                                          :class "btn btn-danger btn-sm glyphicon glyphicon-remove"}]]])]]
        [:div{:class "col-xs-6 col-centered col-max"} [shared-state 0]]]]]]])
-;; -----------------------------------------------------------------------------------------------------------
 
 ;; ---------------------------------------------------------
 ;; rvenue-records
@@ -1539,7 +1532,7 @@
   (if (= nil (fieldbook-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "fieldbook-districts")))))
         (let [onres (fn[json] (secretary/dispatch! "/fieldbook"))]
-          (http-post "http://localhost:9000/fieldbooks" onres  (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-post (str serverhost "fieldbooks") onres  (.serialize (Serializer.) (clj->js @data-set)))))
   (reset! focus "on")))
 
 
@@ -1547,7 +1540,7 @@
   (if (= nil (fieldbook-form-validator @data-set))
     (do (reset! data-set (assoc @data-set :villageid (int (.-value (.getElementById js/document "fieldbook-districts")))))
         (let [onres (fn[data] (secretary/dispatch! "/fieldbook"))]
-          (http-put (str "http://localhost:9000/fieldbooks/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
+          (http-put (str serverhost "fieldbooks/" (:id @data-set)) onres (.serialize (Serializer.) (clj->js @data-set)))))
     (reset! focus "on")))
 
 (defn fieldbook-form-cancel [event]
@@ -1561,7 +1554,7 @@
                    (set-key-value :villages dt)))]
     (set-key-value :villages [])
     (when-not ( >  1 (.-length eval))
-      (http-get (str "http://localhost:9000/villages/search?name=" eval) onresp))))
+      (http-get (str serverhost "villages/search?name=" eval) onresp))))
 
 
 (defn fieldbook-tags-template [data-set]
@@ -1612,7 +1605,7 @@
 (defn fieldbook-delete[id]
   (let [onres (fn [json]
                 (secretary/dispatch! "/fieldbook"))]
-    (http-delete (str "http://localhost:9000/fieldbooks/" id)  onres)))
+    (http-delete (str serverhost "fieldbooks/" id)  onres)))
 
 
 (defroute fieldbook-list "/fieldbook" []
@@ -1622,14 +1615,14 @@
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-fieldbook (get-value! :fieldbooks)])))]
     (set-key-value :is-searched-results false)
-    (http-get (str "http://localhost:9000/fieldbooks?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+    (http-get (str serverhost "fieldbooks?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 
 (defroute fieldbook-add-path "/fieldbook/add" []
   (let [onres (fn[json](
                         (set-key-value :villages (getdata json))
                         (set-page! [fieldbook-add-template])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defroute fieldbook-upd-path "/fieldbook/update/:id" [id]
   (let [onres (fn[json](
@@ -1637,7 +1630,7 @@
                         (set-page! [fieldbook-update-template id
                                     (first (filter (fn[obj]
                                                      (=(.-id obj) (.parseInt js/window id))) (get-value! :fieldbooks)))])))]
-    (http-get "http://localhost:9000/villages" onres)))
+    (http-get (str serverhost "villages") onres)))
 
 (defn fieldbook-add [event]
   (secretary/dispatch! "/fieldbook/add"))
@@ -1707,7 +1700,7 @@
                   (set-key-value :total-pages (get-total-rec-no (.-pagesCount dt)))
                   (set-key-value :page-location  [render-mutations (get-value! :mutations)])))]
     (set-key-value :is-searched-results false)
-    (http-get (str "http://localhost:9000/mutations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
+    (http-get (str serverhost "mutations?pageIndex="(dec (get-value! :current-page))"&pageSize=10") onres)))
 
 (defroute "*" []
   (js/alert "<h1>Not Found Page</h1>"))
