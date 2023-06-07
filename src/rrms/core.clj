@@ -25,7 +25,7 @@
 
 
 (defroutes app-routes
-  (GET "/" [] home)
+  (GET "/"  [] home)
 
 
   (route/resources "/static")
